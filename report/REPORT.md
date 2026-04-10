@@ -1,7 +1,7 @@
 # Báo Cáo Lab 7: Embedding & Vector Store
 
-**Họ tên:** Lã Thị LinhLinh
-**Nhóm:** B2B2
+**Họ tên:** Lã Thị Linh
+**Nhóm:** B2
 **Ngày:** 10/04/20262026
 
 ---
