@@ -6,6 +6,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from src.CustomerChunker import LegalArticleChunker
 from src.agent import KnowledgeBaseAgent
 from src.embeddings import (
     EMBEDDING_PROVIDER_ENV,
@@ -19,12 +20,7 @@ from src.models import Document
 from src.store import EmbeddingStore
 
 SAMPLE_FILES = [
-    "data/python_intro.txt",
-    "data/vector_store_notes.md",
-    "data/rag_system_design.md",
-    "data/customer_support_playbook.txt",
-    "data/chunking_experiment_report.md",
-    "data/vi_retrieval_notes.md",
+    "D:\AI_thực chiến\Day_07\Day-07-Lab-Data-Foundations\data\law.md",
 ]
 
 
@@ -32,6 +28,7 @@ def load_documents_from_files(file_paths: list[str]) -> list[Document]:
     """Load documents from file paths for the manual demo."""
     allowed_extensions = {".md", ".txt"}
     documents: list[Document] = []
+    legal_chunker = LegalArticleChunker(max_size=1000, preprocess=True)
 
     for raw_path in file_paths:
         path = Path(raw_path)
@@ -45,13 +42,31 @@ def load_documents_from_files(file_paths: list[str]) -> list[Document]:
             continue
 
         content = path.read_text(encoding="utf-8")
-        documents.append(
-            Document(
-                id=path.stem,
-                content=content,
-                metadata={"source": str(path), "extension": path.suffix.lower()},
+
+        if path.name.lower() == "law.md":
+            chunks = legal_chunker.chunk(content)
+            for idx, chunk in enumerate(chunks):
+                documents.append(
+                    Document(
+                        id=f"{path.stem}_chunk_{idx}",
+                        content=chunk,
+                        metadata={
+                            "source": str(path),
+                            "extension": path.suffix.lower(),
+                            "chunk_index": idx,
+                            "chunker": "LegalArticleChunker",
+                            "preprocessed": True,
+                        },
+                    )
+                )
+        else:
+            documents.append(
+                Document(
+                    id=path.stem,
+                    content=content,
+                    metadata={"source": str(path), "extension": path.suffix.lower()},
+                )
             )
-        )
 
     return documents
 
@@ -62,7 +77,9 @@ def demo_llm(prompt: str) -> str:
     return f"[DEMO LLM] Generated answer from prompt preview: {preview}..."
 
 
-def run_manual_demo(question: str | None = None, sample_files: list[str] | None = None) -> int:
+def run_manual_demo(
+    question: str | None = None, sample_files: list[str] | None = None
+) -> int:
     files = sample_files or SAMPLE_FILES
     query = question or "Summarize the key information from the loaded files."
 
@@ -87,18 +104,24 @@ def run_manual_demo(question: str | None = None, sample_files: list[str] | None 
     provider = os.getenv(EMBEDDING_PROVIDER_ENV, "mock").strip().lower()
     if provider == "local":
         try:
-            embedder = LocalEmbedder(model_name=os.getenv("LOCAL_EMBEDDING_MODEL", LOCAL_EMBEDDING_MODEL))
+            embedder = LocalEmbedder(
+                model_name=os.getenv("LOCAL_EMBEDDING_MODEL", LOCAL_EMBEDDING_MODEL)
+            )
         except Exception:
             embedder = _mock_embed
     elif provider == "openai":
         try:
-            embedder = OpenAIEmbedder(model_name=os.getenv("OPENAI_EMBEDDING_MODEL", OPENAI_EMBEDDING_MODEL))
+            embedder = OpenAIEmbedder(
+                model_name=os.getenv("OPENAI_EMBEDDING_MODEL", OPENAI_EMBEDDING_MODEL)
+            )
         except Exception:
             embedder = _mock_embed
     else:
         embedder = _mock_embed
 
-    print(f"\nEmbedding backend: {getattr(embedder, '_backend_name', embedder.__class__.__name__)}")
+    print(
+        f"\nEmbedding backend: {getattr(embedder, '_backend_name', embedder.__class__.__name__)}"
+    )
 
     store = EmbeddingStore(collection_name="manual_test_store", embedding_fn=embedder)
     store.add_documents(docs)
@@ -108,7 +131,9 @@ def run_manual_demo(question: str | None = None, sample_files: list[str] | None 
     print(f"Query: {query}")
     search_results = store.search(query, top_k=3)
     for index, result in enumerate(search_results, start=1):
-        print(f"{index}. score={result['score']:.3f} source={result['metadata'].get('source')}")
+        print(
+            f"{index}. score={result['score']:.3f} source={result['metadata'].get('source')}"
+        )
         print(f"   content preview: {result['content'][:120].replace(chr(10), ' ')}...")
 
     print("\n=== KnowledgeBaseAgent Test ===")

@@ -1,4 +1,5 @@
 from .agent import KnowledgeBaseAgent
+from .CustomerChunker import LegalArticleChunker, preprocess_law_markdown
 from .chunking import (
     ChunkingStrategyComparator,
     FixedSizeChunker,
@@ -27,6 +28,8 @@ __all__ = [
     "compute_similarity",
     "EmbeddingStore",
     "KnowledgeBaseAgent",
+    "LegalArticleChunker",
+    "preprocess_law_markdown",
     "MockEmbedder",
     "LocalEmbedder",
     "OpenAIEmbedder",
